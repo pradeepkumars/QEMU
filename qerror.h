@@ -151,6 +151,9 @@ QError *qobject_to_qerror(const QObject *obj);
 #define QERR_INVALID_PARAMETER_VALUE \
     "{ 'class': 'InvalidParameterValue', 'data': { 'name': %s, 'expected': %s } }"
 
+#define QERR_TOO_MANY_PARAMETERS \
+    "{ 'class': 'TooManyParameters', 'data': {} }"
+
 #define QERR_INVALID_PASSWORD \
     "{ 'class': 'InvalidPassword', 'data': {} }"
 

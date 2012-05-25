@@ -172,6 +172,10 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "Parameter '%(name)' expects %(expected)",
     },
     {
+        .error_fmt = QERR_TOO_MANY_PARAMETERS,
+        .desc      = "Too many parameters",
+    },
+    {
         .error_fmt = QERR_INVALID_PASSWORD,
         .desc      = "Password incorrect",
     },
