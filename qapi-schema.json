@@ -1755,3 +1755,23 @@
 # Since: 0.14.0
 ##
 { 'command': 'device_del', 'data': {'id': 'str'} }
+
+##
+# @sendkey:
+#
+# Send keys to VM.
+#
+# @keys: key sequence
+# @hold-time: time to delay key up events
+#
+# Returns: Nothing on success
+#          If key is unknown or redundant, QERR_INVALID_PARAMETER
+#          If key is invalid, QERR_INVALID_PARAMETER_VALUE
+#
+# Notes: Send @var{keys} to the emulator. @var{keys} could be the name of the
+#        key or the raw value in either decimal or hexadecimal  format. Use
+#        @code{-} to press several keys simultaneously.
+#
+# Since: 0.14.0
+##
+{ 'command': 'sendkey', 'data': {'keys': 'str', '*hold-time': 'int'} }

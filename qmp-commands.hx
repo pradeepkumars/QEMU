@@ -335,6 +335,30 @@ Example:
 EQMP
 
     {
+        .name       = "sendkey",
+        .args_type  = "keys:s,hold-time:i?",
+        .mhandler.cmd_new = qmp_marshal_input_sendkey,
+    },
+
+SQMP
+sendkey
+----------
+
+Send keys to VM.
+
+Arguments:
+
+- "keys": key sequence (json-string)
+- "hold-time": time to delay key up events (josn-string, optional)
+
+Example:
+
+-> { "execute": "sendkey", "arguments": { "keys": "ctrl-alt-delete", "hold-time": 200 } }
+<- { "return": {} }
+
+EQMP
+
+    {
         .name       = "cpu",
         .args_type  = "index:i",
         .mhandler.cmd_new = qmp_marshal_input_cpu,

@@ -947,3 +947,14 @@ void hmp_device_del(Monitor *mon, const QDict *qdict)
     qmp_device_del(id, &err);
     hmp_handle_error(mon, &err);
 }
+
+void hmp_sendkey(Monitor *mon, const QDict *qdict)
+{
+    const char *keys = qdict_get_str(qdict, "keys");
+    int has_hold_time = qdict_haskey(qdict, "hold-time");
+    int hold_time = qdict_get_try_int(qdict, "hold-time", -1);
+    Error *err = NULL;
+
+    qmp_sendkey(keys, has_hold_time, hold_time, &err);
+    hmp_handle_error(mon, &err);
+}
