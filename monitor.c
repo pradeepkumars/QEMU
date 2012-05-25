@@ -1377,14 +1377,12 @@ static void release_keys(void *opaque)
     }
 }
 
-static void do_sendkey(Monitor *mon, const QDict *qdict)
+void qmp_sendkey(const char *keys, bool has_hold_time, int64_t hold_time,
+                 Error **err)
 {
     char keyname_buf[16];
     char *separator;
     int keyname_len, keycode, i;
-    const char *keys = qdict_get_str(qdict, "keys");
-    int has_hold_time = qdict_haskey(qdict, "hold-time");
-    int hold_time = qdict_get_try_int(qdict, "hold-time", -1);
 
     if (nb_pending_keycodes > 0) {
         qemu_del_timer(key_timer);
@@ -1399,17 +1397,18 @@ static void do_sendkey(Monitor *mon, const QDict *qdict)
         if (keyname_len > 0) {
             pstrcpy(keyname_buf, sizeof(keyname_buf), keys);
             if (keyname_len > sizeof(keyname_buf) - 1) {
-                monitor_printf(mon, "invalid key: '%s...'\n", keyname_buf);
+                error_set(err, QERR_INVALID_PARAMETER_VALUE, "keyname_buf",
+                          keyname_buf);
                 return;
             }
             if (i == MAX_KEYCODES) {
-                monitor_printf(mon, "too many keys\n");
+                error_set(err, QERR_TOO_MANY_PARAMETERS);
                 return;
             }
             keyname_buf[keyname_len] = 0;
             keycode = get_keycode(keyname_buf);
             if (keycode < 0) {
-                monitor_printf(mon, "unknown key: '%s'\n", keyname_buf);
+                error_set(err, QERR_INVALID_PARAMETER, keyname_buf);
                 return;
             }
             keycodes[i++] = keycode;
