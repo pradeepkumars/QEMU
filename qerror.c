@@ -176,6 +176,10 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "Parameter '%(name)' expects %(expected)",
     },
     {
+        .error_fmt = QERR_OVERFLOW,
+        .desc      = "Input is overflow",
+    },
+    {
         .error_fmt = QERR_INVALID_PASSWORD,
         .desc      = "Password incorrect",
     },
