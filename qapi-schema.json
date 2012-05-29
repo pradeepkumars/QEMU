@@ -1774,4 +1774,8 @@
 #
 # Since: 0.14.0
 ##
-{ 'command': 'sendkey', 'data': {'keys': 'str', '*hold-time': 'int'} }
+
+{ 'type': 'Sendkey', 'data': {'key': 'str' } }
+
+{ 'command': 'sendkey',
+  'data': { 'keys': [ 'Sendkey' ], '*hold-time': 'int' } }

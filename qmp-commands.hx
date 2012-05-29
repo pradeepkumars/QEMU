@@ -336,7 +336,7 @@ EQMP
 
     {
         .name       = "sendkey",
-        .args_type  = "keys:s,hold-time:i?",
+        .args_type  = "keys:O,hold-time:i?",
         .mhandler.cmd_new = qmp_marshal_input_sendkey,
     },
 
@@ -348,12 +348,22 @@ Send keys to VM.
 
 Arguments:
 
-- "keys": key sequence (json-string)
-- "hold-time": time to delay key up events (josn-string, optional)
+keys array:
+    - "type": the operation to perform. (json-string)
+    - "data": a dictionary:
+      - "key": key name (json-string)
+
+- hold-time: time to delay key up events (josn-int, optional)
 
 Example:
 
--> { "execute": "sendkey", "arguments": { "keys": "ctrl-alt-delete", "hold-time": 200 } }
+-> { "execute": "sendkey",
+     "arguments": { "keys": [
+         { "key": "ctrl" },
+         { "key": "alt" },
+         { "key": "delete" } ],
+         "hold-time": 200 } }
+
 <- { "return": {} }
 
 EQMP

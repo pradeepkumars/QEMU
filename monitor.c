@@ -1377,12 +1377,12 @@ static void release_keys(void *opaque)
     }
 }
 
-void qmp_sendkey(const char *keys, bool has_hold_time, int64_t hold_time,
-                 Error **err)
+void qmp_sendkey(SendkeyList * keys, bool has_hold_time, int64_t hold_time,
+                 Error **errp)
 {
     char keyname_buf[16];
-    char *separator;
-    int keyname_len, keycode, i;
+    int keycode, i;
+    SendkeyList *entry = keys;
 
     if (nb_pending_keycodes > 0) {
         qemu_del_timer(key_timer);
@@ -1390,32 +1390,23 @@ void qmp_sendkey(const char *keys, bool has_hold_time, int64_t hold_time,
     }
     if (!has_hold_time)
         hold_time = 100;
+
     i = 0;
-    while (1) {
-        separator = strchr(keys, '-');
-        keyname_len = separator ? separator - keys : strlen(keys);
-        if (keyname_len > 0) {
-            pstrcpy(keyname_buf, sizeof(keyname_buf), keys);
-            if (keyname_len > sizeof(keyname_buf) - 1) {
-                error_set(err, QERR_INVALID_PARAMETER_VALUE, "keyname_buf",
-                          keyname_buf);
-                return;
-            }
+    while (entry != NULL) {
+        strncpy(keyname_buf, entry->value->key, sizeof(keyname_buf));
+	if (strlen(keyname_buf)) {
             if (i == MAX_KEYCODES) {
-                error_set(err, QERR_TOO_MANY_PARAMETERS);
+                error_set(errp, QERR_TOO_MANY_PARAMETERS);
                 return;
             }
-            keyname_buf[keyname_len] = 0;
             keycode = get_keycode(keyname_buf);
             if (keycode < 0) {
-                error_set(err, QERR_INVALID_PARAMETER, keyname_buf);
+                error_set(errp, QERR_INVALID_PARAMETER, keyname_buf);
                 return;
             }
-            keycodes[i++] = keycode;
-        }
-        if (!separator)
-            break;
-        keys = separator + 1;
+	    keycodes[i++] = keycode;
+	}
+	entry = entry->next;
     }
     nb_pending_keycodes = i;
     /* key down events */
