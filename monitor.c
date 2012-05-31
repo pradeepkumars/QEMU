@@ -1302,7 +1302,7 @@ static const KeyDef key_defs[] = {
     { 0x48, "kp_8" },
     { 0x49, "kp_9" },
 
-    { 0x56, "<" },
+    { 0x56, "less" },
 
     { 0x57, "f11" },
     { 0x58, "f12" },
@@ -1406,6 +1406,13 @@ static void do_sendkey(Monitor *mon, const QDict *qdict)
                 monitor_printf(mon, "too many keys\n");
                 return;
             }
+
+            /* Be compatible with old interface, convert user inputted "<" */
+            if (!strcmp(keyname_buf, "<")) {
+                pstrcpy(keyname_buf, sizeof(keyname_buf), "less");
+                keyname_len = 4;
+            }
+
             keyname_buf[keyname_len] = 0;
             keycode = get_keycode(keyname_buf);
             if (keycode < 0) {
