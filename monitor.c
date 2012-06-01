@@ -1341,24 +1341,6 @@ static const KeyDef key_defs[] = {
     { 0, NULL },
 };
 
-static int get_keycode(const char *key)
-{
-    const KeyDef *p;
-    char *endp;
-    int ret;
-
-    for(p = key_defs; p->name != NULL; p++) {
-        if (!strcmp(key, p->name))
-            return p->keycode;
-    }
-    if (strstart(key, "0x", NULL)) {
-        ret = strtoul(key, &endp, 0);
-        if (*endp == '\0' && ret >= 0x01 && ret <= 0xff)
-            return ret;
-    }
-    return -1;
-}
-
 #define MAX_KEYCODES 16
 static uint8_t keycodes[MAX_KEYCODES];
 static int nb_pending_keycodes;
@@ -1377,14 +1359,12 @@ static void release_keys(void *opaque)
     }
 }
 
-static void do_sendkey(Monitor *mon, const QDict *qdict)
+void qmp_sendkey(KeyCodesList *keys, bool has_hold_time, int64_t hold_time,
+                 Error **errp)
 {
     char keyname_buf[16];
-    char *separator;
-    int keyname_len, keycode, i;
-    const char *keys = qdict_get_str(qdict, "keys");
-    int has_hold_time = qdict_haskey(qdict, "hold-time");
-    int hold_time = qdict_get_try_int(qdict, "hold-time", -1);
+    int keycode, i;
+    KeyCodesList *entry = keys;
 
     if (nb_pending_keycodes > 0) {
         qemu_del_timer(key_timer);
@@ -1392,39 +1372,23 @@ static void do_sendkey(Monitor *mon, const QDict *qdict)
     }
     if (!has_hold_time)
         hold_time = 100;
+
     i = 0;
-    while (1) {
-        separator = strchr(keys, '-');
-        keyname_len = separator ? separator - keys : strlen(keys);
-        if (keyname_len > 0) {
-            pstrcpy(keyname_buf, sizeof(keyname_buf), keys);
-            if (keyname_len > sizeof(keyname_buf) - 1) {
-                monitor_printf(mon, "invalid key: '%s...'\n", keyname_buf);
-                return;
-            }
-            if (i == MAX_KEYCODES) {
-                monitor_printf(mon, "too many keys\n");
-                return;
-            }
-
-            /* Be compatible with old interface, convert user inputted "<" */
-            if (!strcmp(keyname_buf, "<")) {
-                pstrcpy(keyname_buf, sizeof(keyname_buf), "less");
-                keyname_len = 4;
-            }
-
-            keyname_buf[keyname_len] = 0;
-            keycode = get_keycode(keyname_buf);
-            if (keycode < 0) {
-                monitor_printf(mon, "unknown key: '%s'\n", keyname_buf);
-                return;
-            }
-            keycodes[i++] = keycode;
+    while (entry != NULL) {
+        if (entry->value > sizeof(key_defs) / sizeof(*(key_defs))) {
+            error_set(errp, QERR_INVALID_PARAMETER, keyname_buf);
+            return;
         }
-        if (!separator)
-            break;
-        keys = separator + 1;
+
+        if (i == MAX_KEYCODES) {
+            error_set(errp, QERR_OVERFLOW);
+            return;
+        }
+
+        keycodes[i++] = key_defs[entry->value].keycode;
+        entry = entry->next;
     }
+
     nb_pending_keycodes = i;
     /* key down events */
     for (i = 0; i < nb_pending_keycodes; i++) {
