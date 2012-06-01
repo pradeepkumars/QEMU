@@ -1324,98 +1324,79 @@ static const KeyDef key_defs[] = {
     { 0, NULL },
 };
 
-static int get_keycode(const char *key)
+int get_key_index(const char *key)
 {
-    const KeyDef *p;
+    int i, keycode;
     char *endp;
-    int ret;
+    const KeyDef *p;
 
-    for(p = key_defs; p->name != NULL; p++) {
-        if (!strcmp(key, p->name))
-            return p->keycode;
+    for (i = 0; KeyCodes_lookup[i] != NULL; i++) {
+        if (!strcmp(key, KeyCodes_lookup[i]))
+            return i;
     }
+
     if (strstart(key, "0x", NULL)) {
-        ret = strtoul(key, &endp, 0);
-        if (*endp == '\0' && ret >= 0x01 && ret <= 0xff)
-            return ret;
+        keycode = strtoul(key, &endp, 0);
+        if (*endp == '\0' && keycode >= 0x01 && keycode <= 0xff)
+            i = 0;
+            for (p = key_defs; p->name != NULL; p++) {
+                if (keycode == p->keycode)
+                    return i;
+                i++;
+            }
     }
+
     return -1;
 }
 
-#define MAX_KEYCODES 16
-static uint8_t keycodes[MAX_KEYCODES];
-static int nb_pending_keycodes;
+static KeyCodesList *keycodes;
 static QEMUTimer *key_timer;
 
 static void release_keys(void *opaque)
 {
     int keycode;
+    KeyCodesList *keylist = keycodes;
 
-    while (nb_pending_keycodes > 0) {
-        nb_pending_keycodes--;
-        keycode = keycodes[nb_pending_keycodes];
+    while (keycodes != NULL) {
+        keycode = key_defs[keycodes->value].keycode;
         if (keycode & 0x80)
             kbd_put_keycode(0xe0);
         kbd_put_keycode(keycode | 0x80);
+        keycodes = keycodes->next;
     }
+
+    qapi_free_KeyCodesList(keylist);
 }
 
-static void do_sendkey(Monitor *mon, const QDict *qdict)
+void qmp_sendkey(KeyCodesList *keys, bool has_hold_time, int64_t hold_time,
+                 Error **errp)
 {
-    char keyname_buf[16];
-    char *separator;
-    int keyname_len, keycode, i;
-    const char *keys = qdict_get_str(qdict, "keys");
-    int has_hold_time = qdict_haskey(qdict, "hold-time");
-    int hold_time = qdict_get_try_int(qdict, "hold-time", -1);
+    int keycode;
 
-    if (nb_pending_keycodes > 0) {
+    if (keycodes != NULL) {
         qemu_del_timer(key_timer);
         release_keys(NULL);
     }
     if (!has_hold_time)
         hold_time = 100;
-    i = 0;
-    while (1) {
-        separator = strchr(keys, '-');
-        keyname_len = separator ? separator - keys : strlen(keys);
-        if (keyname_len > 0) {
-            pstrcpy(keyname_buf, sizeof(keyname_buf), keys);
-            if (keyname_len > sizeof(keyname_buf) - 1) {
-                monitor_printf(mon, "invalid key: '%s...'\n", keyname_buf);
-                return;
-            }
-            if (i == MAX_KEYCODES) {
-                monitor_printf(mon, "too many keys\n");
-                return;
-            }
 
-            /* Be compatible with old interface, convert user inputted "<" */
-            if (!strncmp(keyname_buf, "<", 1) && keyname_len == 1) {
-                pstrcpy(keyname_buf, sizeof(keyname_buf), "less");
-                keyname_len = 4;
-            }
-
-            keyname_buf[keyname_len] = 0;
-            keycode = get_keycode(keyname_buf);
-            if (keycode < 0) {
-                monitor_printf(mon, "unknown key: '%s'\n", keyname_buf);
-                return;
-            }
-            keycodes[i++] = keycode;
+    keycodes = keys;
+    while (keycodes != NULL) {
+        if (keycodes->value > sizeof(key_defs) / sizeof(*(key_defs))) {
+            error_set(errp, QERR_INVALID_PARAMETER, (char *)keycodes->value);
+            return;
         }
-        if (!separator)
-            break;
-        keys = separator + 1;
-    }
-    nb_pending_keycodes = i;
-    /* key down events */
-    for (i = 0; i < nb_pending_keycodes; i++) {
-        keycode = keycodes[i];
+
+        /* key down events */
+        keycode = key_defs[keycodes->value].keycode;
         if (keycode & 0x80)
             kbd_put_keycode(0xe0);
         kbd_put_keycode(keycode & 0x7f);
+
+        keycodes = keycodes->next;
     }
+    keycodes = keys;
+
     /* delayed key up events */
     qemu_mod_timer(key_timer, qemu_get_clock_ns(vm_clock) +
                    muldiv64(get_ticks_per_sec(), hold_time, 1000));

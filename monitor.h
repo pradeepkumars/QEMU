@@ -85,4 +85,6 @@ int qmp_qom_set(Monitor *mon, const QDict *qdict, QObject **ret);
 
 int qmp_qom_get(Monitor *mon, const QDict *qdict, QObject **ret);
 
+int get_key_index(const char *key);
+
 #endif /* !MONITOR_H */

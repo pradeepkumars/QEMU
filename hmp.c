@@ -18,6 +18,7 @@
 #include "qemu-option.h"
 #include "qemu-timer.h"
 #include "qmp-commands.h"
+#include "qapi-types.h"
 
 static void hmp_handle_error(Monitor *mon, Error **errp)
 {
@@ -997,5 +998,48 @@ void hmp_netdev_del(Monitor *mon, const QDict *qdict)
     Error *err = NULL;
 
     qmp_netdev_del(id, &err);
+    hmp_handle_error(mon, &err);
+}
+
+void hmp_sendkey(Monitor *mon, const QDict *qdict)
+{
+    const char *keys = qdict_get_str(qdict, "keys");
+    KeyCodesList *keylist, *head = NULL, *tmp = NULL;
+    int has_hold_time = qdict_haskey(qdict, "hold-time");
+    int hold_time = qdict_get_try_int(qdict, "hold-time", -1);
+    Error *err = NULL;
+    char keyname_buf[16];
+
+    char *separator;
+    int keyname_len;
+
+    while (1) {
+        separator = strchr(keys, '-');
+        keyname_len = separator ? separator - keys : strlen(keys);
+        pstrcpy(keyname_buf, sizeof(keyname_buf), keys);
+
+        /* Be compatible with old interface, convert user inputted "<" */
+        if (!strncmp(keyname_buf, "<", 1) && keyname_len == 1) {
+            pstrcpy(keyname_buf, sizeof(keyname_buf), "less");
+            keyname_len = 4;
+        }
+        keyname_buf[keyname_len] = 0;
+
+        keylist = g_malloc0(sizeof(*keylist));
+        keylist->value = get_key_index(keyname_buf);
+        keylist->next = NULL;
+
+        if (tmp)
+            tmp->next = keylist;
+        tmp = keylist;
+        if (!head)
+            head = keylist;
+
+        if (!separator)
+            break;
+        keys = separator + 1;
+    }
+
+    qmp_sendkey(head, has_hold_time, hold_time, &err);
     hmp_handle_error(mon, &err);
 }
